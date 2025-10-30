@@ -381,7 +381,7 @@ HTML_TEMPLATE = """
         }
         
         #map {
-            height: 40vh; /* <-- Desktop map height */
+            height: 38vh; /* <-- Desktop map height */
             border-radius: 1rem;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
             z-index: 10;
