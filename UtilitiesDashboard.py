@@ -1121,11 +1121,11 @@ HTML_TEMPLATE = """
 
                 let summaryHtml = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-grow">';
                 summaryHtml += `
-                    <div class="text-center bg-gradient-to-br from-blue-50 to-cyan-50 p-4 rounded-xl border-2 border-blue-200 shadow-md">
+                    <div class="text-center bg-gradient-to-br from-blue-50 to-cyan-50 p-8 rounded-xl border-2 border-blue-200 shadow-md">
                         <strong class="text-base font-bold text-gray-900 uppercase tracking-wide">Cork (Current):</strong> 
                         <span class="ml-2 text-3xl font-black text-blue-600">${cork.current.temperature_2m}°C</span>
                     </div>
-                    <div class="text-center bg-gradient-to-br from-blue-50 to-cyan-50 p-4 rounded-xl border-2 border-blue-200 shadow-md">
+                    <div class="text-center bg-gradient-to-br from-blue-50 to-cyan-50 p-8 rounded-xl border-2 border-blue-200 shadow-md">
                         <strong class="text-base font-bold text-gray-900 uppercase tracking-wide">Kerry (Current):</strong> 
                         <span class="ml-2 text-3xl font-black text-blue-600">${kerry.current.temperature_2m}°C</span>
                     </div>
