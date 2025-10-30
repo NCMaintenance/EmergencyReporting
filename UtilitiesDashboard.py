@@ -1040,6 +1040,16 @@ HTML_TEMPLATE = """
             modalContentEl.innerHTML = '';
         }
 
+        function addTideLineBreak(html) {
+            if (!html || html.includes('data-unavailable')) return html;
+            const parts = html.split(' | ');
+            if (parts.length > 2) {
+                // Insert <br class="mt-1"> after the second item
+                return parts.slice(0, 2).join(' | ') + '<br class="mt-1"> ' + parts.slice(2).join(' | ');
+            }
+            return html;
+        }
+
         // --- MOVED and UPDATED Ordinal function ---
         function getOrdinal(n) {
             const s = ["th", "st", "nd", "rd"];
@@ -1150,12 +1160,12 @@ HTML_TEMPLATE = """
                 let summaryHtml = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-grow">';
                 summaryHtml += `
                     <div class="text-center bg-gradient-to-br from-blue-50 to-cyan-50 p-4 rounded-xl border-2 border-blue-200 shadow-md">
-                        <strong class="text-base font-bold text-gray-900 uppercase tracking-wide">Cork (Current):</strong> 
-                        <span class="ml-2 text-3xl font-black text-blue-600">${cork.current.temperature_2m}°C</span>
+                        <strong class="block text-2xl font-bold text-gray-900">Cork (Current)</strong> 
+                        <span class="block text-2xl font-black text-blue-600 mt-1">${cork.current.temperature_2m}°C</span>
                     </div>
                     <div class="text-center bg-gradient-to-br from-blue-50 to-cyan-50 p-4 rounded-xl border-2 border-blue-200 shadow-md">
-                        <strong class="text-base font-bold text-gray-900 uppercase tracking-wide">Kerry (Current):</strong> 
-                        <span class="ml-2 text-3xl font-black text-blue-600">${kerry.current.temperature_2m}°C</span>
+                        <strong class="block text-2xl font-bold text-gray-900">Kerry (Current)</strong> 
+                        <span class="block text-2xl font-black text-blue-600 mt-1">${kerry.current.temperature_2m}°C</span>
                     </div>
                 `;
                 summaryHtml += '</div>';
@@ -1238,8 +1248,8 @@ HTML_TEMPLATE = """
                     // Use the long formatted date (e.g., "Today Thursday 30th...") for the TITLE
                     const fullDateLabel = dayLabels[i] || dayLookupKey; 
                     
-                    const corkTideHtml = corkTides[dayLookupKey] || '<span class="data-unavailable">Data unavailable</span>';
-                    const kerryTideHtml = kerryTides[dayLookupKey] || '<span class="data-unavailable">Data unavailable</span>';
+                    const corkTideHtml = addTideLineBreak(corkTides[dayLookupKey] || '<span class="data-unavailable">Data unavailable</span>');
+                    const kerryTideHtml = addTideLineBreak(kerryTides[dayLookupKey] || '<span class="data-unavailable">Data unavailable</span>');
 
                     detailHtml += `
                         <div class="bg-gradient-to-br from-cyan-50 to-blue-50 border-2 border-cyan-200 p-4 rounded-xl shadow-md hover:shadow-lg transition-shadow">
@@ -1499,3 +1509,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
