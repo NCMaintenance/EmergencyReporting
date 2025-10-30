@@ -246,7 +246,14 @@ def fetch_all_weather():
 @st.cache_data(ttl=60) # Cache for 1 minute
 def fetch_jotform_data():
     """Fetches and processes CSV data from Jotform using the csv module."""
-    url = st.secrets["JF"]
+    # Use st.secrets.get() for robustness, returning None if not set
+    url = st.secrets.get("JF") 
+    
+    if not url:
+        print("Error: 'JF' key not found in Streamlit secrets.", file=sys.stderr)
+        st.error("Application Error: Jotform URL is not configured in secrets.")
+        return "[]" # Return empty list on configuration error
+        
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"
     }
@@ -1361,13 +1368,9 @@ HTML_TEMPLATE = """
 
 # --- 3. STREAMLIT APP LOGIC ---
 
-def main():
-    st.set_page_config(
-        layout="wide", 
-        page_title="HSE Dashboard", 
-        page_icon="https://www.hse.ie/favicon-32x32.png"
-    )
-
+# This function contains your original dashboard
+def show_dashboard():
+    """Fetches data and displays the full HTML dashboard."""
     # Fetch data
     weather_data = fetch_all_weather()
     tide_data = fetch_scraped_tides() # <-- Decoupled fetch
@@ -1385,6 +1388,66 @@ def main():
     # Render the HTML in Streamlit
     st.components.v1.html(html_content, height=1800, scrolling=True)
 
+# --- NEW: Password check function ---
+def check_password():
+    """
+    Displays a password input field and returns True if the password is correct,
+    False otherwise.
+    """
+    
+    # Get the correct password from secrets.
+    # st.secrets.get() is safer as it returns None if not found,
+    # rather than raising an exception.
+    correct_password = st.secrets.get("APP_PASSWORD")
+
+    # If the password is not set in st.secrets, show an error and stop.
+    if not correct_password:
+        st.error("Application Error: Password is not configured.")
+        st.info("Please add `APP_PASSWORD = 'your_secret_password'` to your Streamlit secrets.")
+        return False
+
+    # --- Impressive Landing Page ---
+    # We use st.container to group and center the login elements
+    with st.container():
+        st.image("https://www.hse.ie/image-library/hse-site-logo-2021.svg", width=200)
+        st.title("Secure Access Portal")
+        st.info("Please authenticate to proceed to the operations dashboard.")
+        
+        password = st.text_input("Password", type="password")
+        
+        if st.button("Authenticate"):
+            if password == correct_password:
+                # If correct, set a flag in session_state and return True
+                st.session_state["password_correct"] = True
+                return True
+            else:
+                st.error("Access Denied. Please check your credentials.")
+                return False
+    return False
+
+# --- NEW: Main function with password logic ---
+def main():
+    """
+    Main app entry point.
+    Handles page configuration and password checking before
+    displaying the main dashboard.
+    """
+    st.set_page_config(
+        layout="wide", 
+        page_title="HSE Dashboard", 
+        page_icon="https://www.hse.ie/favicon-32x32.png"
+    )
+
+    # Check if the 'password_correct' flag is in session_state and is True
+    if st.session_state.get("password_correct", False):
+        # If password is correct, show the main dashboard
+        show_dashboard()
+    else:
+        # If not authenticated, show the password check page
+        if check_password():
+            # If check_password() returns True (meaning login was successful *this time*),
+            # rerun the app immediately to show the dashboard.
+            st.rerun()
+
 if __name__ == "__main__":
     main()
-
