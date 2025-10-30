@@ -15,7 +15,7 @@ import re
 # --- 1. PYTHON DATA FETCHING LOGIC ---
 
 # --- Weather Fetching ---
-FORECAST_URL = 'https://api.open-meteo.com/v1/forecast?latitude=51.90,52.14&longitude=-8.47,-10.27&current=temperature_2m&daily=time,weathercode,temperature_2m_max,temperature_2m_min,wind_speed_10m_max,wind_gusts_10m_max&timezone=Europe%2FDublin&forecast_days=3'
+FORECAST_URL = 'https://api.open-meteo.com/v1/forecast?latitude=51.90,52.14&longitude=-8.47,-10.27&current=temperature_2m&daily=time,weathercode,temperature_2m_max,temperature_2m_min,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant&timezone=Europe%2FDublin&forecast_days=3'
 ALERTS_CORK_URL = 'https://meteo-api.open-meteo.com/v1/meteoalerts?latitude=51.90&longitude=-8.47&domains=met&forecast_days=3'
 ALERTS_KERRY_URL = 'https://meteo-api.open-meteo.com/v1/meteoalerts?latitude=52.14&longitude=-10.27&domains=met&forecast_days=3'
 
@@ -218,7 +218,8 @@ def fetch_all_weather():
                     "temperature_2m_max": [17, 18, 16], 
                     "temperature_2m_min": [10, 11, 9], 
                     "wind_speed_10m_max": [15, 18, 20], 
-                    "wind_gusts_10m_max": [30, 35, 40] 
+                    "wind_gusts_10m_max": [30, 35, 40],
+                    "wind_direction_10m_dominant": [270, 180, 90] 
                 } 
             },
             { 
@@ -229,7 +230,8 @@ def fetch_all_weather():
                     "temperature_2m_max": [16, 17, 15], 
                     "temperature_2m_min": [9, 10, 8], 
                     "wind_speed_10m_max": [20, 22, 25], 
-                    "wind_gusts_10m_max": [40, 45, 50] 
+                    "wind_gusts_10m_max": [40, 45, 50],
+                    "wind_direction_10m_dominant": [190, 80, 280]
                 } 
             }
         ]
@@ -692,7 +694,7 @@ HTML_TEMPLATE = """
             <!-- === NEW QR CODE LINKS SECTION === -->
             <div class="mb-12 pt-8 border-t border-gray-300">
                 <h3 class="text-lg font-bold text-gray-800 mb-6">Quick Links</h3>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-4xl mx-auto">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-12 max-w-5xl mx-auto">
                     
                     <!-- Link 1: Jotform -->
                     <a href="https://form.jotform.com/250264606365052" target="_blank" rel="noopener noreferrer" class="pro-card p-4 rounded-2xl shadow-lg hover:shadow-xl transition-all group text-center no-underline">
@@ -1089,6 +1091,14 @@ HTML_TEMPLATE = """
             modalContentEl.innerHTML = '';
         }
 
+        // --- NEW Wind Direction Helper ---
+        function degreesToCardinal(deg) {
+            if (deg === null || deg === undefined) return '';
+            const dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+            const val = Math.floor((deg / 22.5) + 0.5);
+            return dirs[val % 16] || '';
+        }
+
         // --- MOVED and UPDATED Ordinal function ---
         function getOrdinal(n) {
             const s = ["th", "st", "nd", "rd"];
@@ -1249,6 +1259,8 @@ HTML_TEMPLATE = """
                     
                     const corkWeather = getWeatherDescription(cork.daily.weathercode[i]);
                     const kerryWeather = getWeatherDescription(kerry.daily.weathercode[i]);
+                    const corkWindDir = degreesToCardinal(cork.daily.wind_direction_10m_dominant[i]);
+                    const kerryWindDir = degreesToCardinal(kerry.daily.wind_direction_10m_dominant[i]);
 
                     // --- UPDATED Weather HTML (2 lines) ---
                     detailHtml += `
@@ -1257,11 +1269,11 @@ HTML_TEMPLATE = """
                             <div class="text-xs mt-2 space-y-2">
                                 <div class="bg-white p-2 rounded-lg break-words">
                                     <div><strong class="text-blue-600">Cork:</strong> ${cork.daily.temperature_2m_min[i]}° / ${cork.daily.temperature_2m_max[i]}°C | <strong>Sky:</strong> ${corkWeather}</div>
-                                    <div class="mt-1"><strong class="text-gray-600">Wind:</strong> ${cork.daily.wind_speed_10m_max[i]} km/h (Gusts ${cork.daily.wind_gusts_10m_max[i]} km/h)</div>
+                                    <div class="mt-1"><strong class="text-gray-600">Wind:</strong> ${corkWindDir} ${cork.daily.wind_speed_10m_max[i]} km/h (Gusts ${cork.daily.wind_gusts_10m_max[i]} km/h)</div>
                                 </div>
                                 <div class="bg-white p-2 rounded-lg break-words">
                                     <div><strong class="text-blue-600">Kerry:</strong> ${kerry.daily.temperature_2m_min[i]}° / ${kerry.daily.temperature_2m_max[i]}°C | <strong>Sky:</strong> ${kerryWeather}</div>
-                                    <div class="mt-1"><strong class="text-gray-600">Wind:</strong> ${kerry.daily.wind_speed_10m_max[i]} km/h (Gusts ${kerry.daily.wind_gusts_10m_max[i]} km/h)</div>
+                                    <div class="mt-1"><strong class="text-gray-600">Wind:</strong> ${kerryWindDir} ${kerry.daily.wind_speed_10m_max[i]} km/h (Gusts ${kerry.daily.wind_gusts_10m_max[i]} km/h)</div>
                                 </div>
                             </div>
                         </div>
@@ -1618,3 +1630,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
