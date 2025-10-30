@@ -153,7 +153,7 @@ def fetch_scraped_tides():
     
     locations_to_scrape = {
         "Cork": "https://www.tidetime.org/europe/ireland/cork.htm",
-        "Kerry (Fenit)": "https://www.tidetime.org/europe/ireland/fenit.htm"
+        "Kerry": "https://www.tidetime.org/europe/ireland/fenit.htm" # <-- CHANGED
     }
 
     # --- Generate Dynamic Target Days ---
@@ -327,6 +327,8 @@ HTML_TEMPLATE = """
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <!-- ADDED Chart.js Datalabels Plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -688,6 +690,9 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
+        // Register the datalabels plugin
+        Chart.register(ChartDataLabels); 
+
         const PRELOADED_WEATHER_DATA = %%WEATHER_DATA_PLACEHOLDER%%;
         const PRELOADED_TIDE_DATA = %%TIDE_DATA_PLACEHOLDER%%;
         const RAW_DATA = %%JOTFORM_DATA_PLACEHOLDER%%;
@@ -832,6 +837,22 @@ HTML_TEMPLATE = """
                     maintainAspectRatio: false,
                     cutout: '60%',
                     plugins: {
+                        // --- ADDED Datalabels config ---
+                        datalabels: {
+                            display: true,
+                            color: '#ffffff',
+                            font: {
+                                weight: 'bold',
+                                size: 16,
+                                family: "'Inter', sans-serif"
+                            },
+                            formatter: (value, context) => {
+                                return value; // Show the raw count
+                            },
+                            textShadowBlur: 2,
+                            textShadowColor: 'rgba(0, 0, 0, 0.5)'
+                        },
+                        // --- End of Datalabels config ---
                         legend: {
                             position: 'right',
                             labels: {
@@ -894,7 +915,7 @@ HTML_TEMPLATE = """
                         <div class="chart-bar h-full rounded-full flex items-center justify-end pr-3 text-xs font-bold text-white shadow-md"
                              style="width: 0%; background: linear-gradient(90deg, ${item.color}, ${item.color}dd); min-width: 10%;"
                              data-width="${maxValue > 0 ? (item.value / maxValue) * 100 : 0}">
-                             ${item.value}
+                            ${item.value}
                         </div>
                     </div>
                 </div>
@@ -1019,6 +1040,13 @@ HTML_TEMPLATE = """
             modalContentEl.innerHTML = '';
         }
 
+        // --- MOVED and UPDATED Ordinal function ---
+        function getOrdinal(n) {
+            const s = ["th", "st", "nd", "rd"];
+            const v = n % 100;
+            return n + (s[(v - 20) % 10] || s[v] || s[0]);
+        }
+
         function getWeatherDescription(code) {
             const descriptions = {
                 0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
@@ -1117,15 +1145,15 @@ HTML_TEMPLATE = """
                 }
 
                 const [cork, kerry] = forecasts; 
-                // Tides object is now different: e.g., tides['Cork'] and tides['Kerry (Fenit)']
+                // Tides object is now: tides['Cork'] and tides['Kerry']
 
                 let summaryHtml = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-grow">';
                 summaryHtml += `
-                    <div class="text-center bg-gradient-to-br from-blue-50 to-cyan-50 p-8 rounded-xl border-2 border-blue-200 shadow-md">
+                    <div class="text-center bg-gradient-to-br from-blue-50 to-cyan-50 p-4 rounded-xl border-2 border-blue-200 shadow-md">
                         <strong class="text-base font-bold text-gray-900 uppercase tracking-wide">Cork (Current):</strong> 
                         <span class="ml-2 text-3xl font-black text-blue-600">${cork.current.temperature_2m}°C</span>
                     </div>
-                    <div class="text-center bg-gradient-to-br from-blue-50 to-cyan-50 p-8 rounded-xl border-2 border-blue-200 shadow-md">
+                    <div class="text-center bg-gradient-to-br from-blue-50 to-cyan-50 p-4 rounded-xl border-2 border-blue-200 shadow-md">
                         <strong class="text-base font-bold text-gray-900 uppercase tracking-wide">Kerry (Current):</strong> 
                         <span class="ml-2 text-3xl font-black text-blue-600">${kerry.current.temperature_2m}°C</span>
                     </div>
@@ -1138,8 +1166,31 @@ HTML_TEMPLATE = """
                 detailHtml += '<div class="space-y-3">';
                 detailHtml += '<h4 class="text-base font-bold text-gray-800 border-b-2 border-blue-300 pb-2 mb-3 flex items-center"><svg class="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>3-Day Weather Forecast</h4>';
                 
+                // --- NEW: Full Date Formatting ---
                 const today = new Date();
-                const dayLabels = ['Today', 'Tomorrow', (new Date(new Date().setDate(new Date().getDate() + 2))).toLocaleDateString('en-IE', { weekday: 'short' })];
+                const tomorrow = new Date(today);
+                tomorrow.setDate(today.getDate() + 1);
+                const dayAfter = new Date(today);
+                dayAfter.setDate(today.getDate() + 2);
+
+                const formatDate = (date, prefix) => {
+                    const day = date.toLocaleDateString('en-IE', { weekday: 'long' });
+                    const dayNum = getOrdinal(date.getDate());
+                    const month = date.toLocaleDateString('en-IE', { month: 'long' });
+                    const year = date.getFullYear(); // Add year
+                    // Check if prefix is already a weekday
+                    if (prefix.toLowerCase() === day.toLowerCase()) {
+                         return `${day} ${dayNum} of ${month} ${year}`;
+                    }
+                    return `${prefix} ${day} ${dayNum} of ${month} ${year}`;
+                };
+
+                const dayLabels = [
+                    formatDate(today, 'Today'),
+                    formatDate(tomorrow, 'Tomorrow'),
+                    formatDate(dayAfter, dayAfter.toLocaleDateString('en-IE', { weekday: 'long' }))
+                ];
+                // --- END: Full Date Formatting ---
 
 
                 for (let i = 0; i < 3; i++) {
@@ -1149,33 +1200,32 @@ HTML_TEMPLATE = """
                         continue;
                     }
                     
-                    const date = cork.daily.time[i].slice(5);
                     const corkWeather = getWeatherDescription(cork.daily.weathercode[i]);
                     const kerryWeather = getWeatherDescription(kerry.daily.weathercode[i]);
 
+                    // --- UPDATED Weather HTML (2 lines) ---
                     detailHtml += `
                         <div class="bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-200 p-4 rounded-xl shadow-md hover:shadow-lg transition-shadow">
-                            <strong class="text-gray-900 font-bold text-base">${dayLabels[i]} (${date})</strong>
+                            <strong class="text-gray-900 font-bold text-base">${dayLabels[i]}</strong>
                             <div class="text-xs mt-2 space-y-2">
-                                <div class="bg-white p-2 rounded-lg">
-                                    <strong class="text-blue-600">Cork:</strong> ${cork.daily.temperature_2m_min[i]}° / ${cork.daily.temperature_2m_max[i]}°C | 
-                                    <strong>Wind:</strong> ${cork.daily.wind_speed_10m_max[i]} km/h | 
-                                    <strong>Sky:</strong> ${corkWeather}
+                                <div class="bg-white p-2 rounded-lg break-words">
+                                    <div><strong class="text-blue-600">Cork:</strong> ${cork.daily.temperature_2m_min[i]}° / ${cork.daily.temperature_2m_max[i]}°C | <strong>Sky:</strong> ${corkWeather}</div>
+                                    <div class="mt-1"><strong class="text-gray-600">Wind:</strong> ${cork.daily.wind_speed_10m_max[i]} km/h (Gusts ${cork.daily.wind_gusts_10m_max[i]} km/h)</div>
                                 </div>
-                                <div class="bg-white p-2 rounded-lg">
-                                    <strong class="text-blue-600">Kerry:</strong> ${kerry.daily.temperature_2m_min[i]}° / ${kerry.daily.temperature_2m_max[i]}°C | 
-                                    <strong>Wind:</strong> ${kerry.daily.wind_speed_10m_max[i]} km/h | 
-                                    <strong>Sky:</strong> ${kerryWeather}
+                                <div class="bg-white p-2 rounded-lg break-words">
+                                    <div><strong class="text-blue-600">Kerry:</strong> ${kerry.daily.temperature_2m_min[i]}° / ${kerry.daily.temperature_2m_max[i]}°C | <strong>Sky:</strong> ${kerryWeather}</div>
+                                    <div class="mt-1"><strong class="text-gray-600">Wind:</strong> ${kerry.daily.wind_speed_10m_max[i]} km/h (Gusts ${kerry.daily.wind_gusts_10m_max[i]} km/h)</div>
                                 </div>
                             </div>
                         </div>
                     `;
+                    // --- END: UPDATED Weather HTML ---
                 }
                 detailHtml += '</div>';
 
                 // --- Tides Column (MODIFIED) ---
                 const corkTides = tides.Cork || {};
-                const kerryTides = tides["Kerry (Fenit)"] || {};
+                const kerryTides = tides.Kerry || {}; // <-- CHANGED
                 const corkDayKeys = Object.keys(corkTides);
                 const kerryDayKeys = Object.keys(kerryTides);
                 
@@ -1183,14 +1233,17 @@ HTML_TEMPLATE = """
                 detailHtml += '<h4 class="text-base font-bold text-gray-800 border-b-2 border-cyan-300 pb-2 mb-3 flex items-center"><svg class="w-5 h-5 mr-2 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>3-Day High/Low Tides</h4>';
 
                 for (let i = 0; i < 3; i++) {
-                    const dayLabel = corkDayKeys[i] || kerryDayKeys[i] || dayLabels[i] || "Day " + (i+1);
+                    // Use the short key (e.g., "Thu, 30th") to LOOKUP data
+                    const dayLookupKey = corkDayKeys[i] || kerryDayKeys[i] || "Day " + (i+1); 
+                    // Use the long formatted date (e.g., "Today Thursday 30th...") for the TITLE
+                    const fullDateLabel = dayLabels[i] || dayLookupKey; 
                     
-                    const corkTideHtml = corkTides[dayLabel] || '<span class="data-unavailable">Data unavailable</span>';
-                    const kerryTideHtml = kerryTides[dayLabel] || '<span class="data-unavailable">Data unavailable</span>';
+                    const corkTideHtml = corkTides[dayLookupKey] || '<span class="data-unavailable">Data unavailable</span>';
+                    const kerryTideHtml = kerryTides[dayLookupKey] || '<span class="data-unavailable">Data unavailable</span>';
 
                     detailHtml += `
                         <div class="bg-gradient-to-br from-cyan-50 to-blue-50 border-2 border-cyan-200 p-4 rounded-xl shadow-md hover:shadow-lg transition-shadow">
-                            <strong class="text-gray-900 font-bold text-base">${dayLabel}</strong>
+                            <strong class="text-gray-900 font-bold text-base">${fullDateLabel}</strong>
                             <div class="text-xs mt-2 space-y-2">
                                 <!-- The 'break-words' and 'innerHTML' are key for rendering the bold tags -->
                                 <div class="bg-white p-2 rounded-lg break-words" id="cork-tide-${i}"></div>
@@ -1205,7 +1258,7 @@ HTML_TEMPLATE = """
                         const corkEl = document.getElementById(`cork-tide-${i}`);
                         const kerryEl = document.getElementById(`kerry-tide-${i}`);
                         if(corkEl) corkEl.innerHTML = `<strong class="text-cyan-600">Cork:</strong> ${corkTideHtml}`;
-                        if(kerryEl) kerryEl.innerHTML = `<strong class="text-cyan-600">Kerry (Fenit):</strong> ${kerryTideHtml}`;
+                        if(kerryEl) kerryEl.innerHTML = `<strong class="text-cyan-600">Kerry:</strong> ${kerryTideHtml}`; // <-- CHANGED
                     }, 0);
                 }
                 detailHtml += '</div>';
@@ -1231,15 +1284,16 @@ HTML_TEMPLATE = """
                 detailHtml += '</div>'; // close grid
 
                 // --- Combine and Inject HTML ---
+                // --- UPDATED to be expanded by default ---
                 weatherCardContent.innerHTML = `
                     <div id="weatherClickTarget" class="cursor-pointer group">
                         <div class="flex justify-between items-center">
                             ${summaryHtml}
                             <div class="ml-4 flex-shrink-0">
-                                <svg id="weatherChevron" class="w-8 h-8 text-gray-400 group-hover:text-blue-600 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                <svg id="weatherChevron" class="w-8 h-8 text-gray-400 group-hover:text-blue-600 transition-transform duration-300 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                             </div>
                         </div>
-                        <div id="weatherDetails" class="hidden mt-6 pt-6 border-t-2 border-gray-200">
+                        <div id="weatherDetails" class="mt-6 pt-6 border-t-2 border-gray-200">
                             ${detailHtml}
                         </div>
                     </div>
@@ -1339,16 +1393,10 @@ HTML_TEMPLATE = """
             });
 
             // --- 5. Start Live Clock ---
-            function getOrdinal(n) {
-                const s = ["th", "st", "nd", "rd"];
-                const v = n % 100;
-                return n + (s[(v - 20) % 10] || s[v] || s[0]);
-            }
-
             function updateLiveClock() {
                 const now = new Date();
                 const day = now.toLocaleDateString('en-IE', { weekday: 'long' });
-                const date = getOrdinal(now.getDate());
+                const date = getOrdinal(now.getDate()); // Use global getOrdinal
                 const month = now.toLocaleDateString('en-IE', { month: 'long' });
                 const year = now.getFullYear();
                 const timeString = now.toLocaleTimeString('en-IE', { hour: '2-digit', minute: '2-digit' });
