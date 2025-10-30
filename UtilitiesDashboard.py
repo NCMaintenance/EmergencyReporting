@@ -246,7 +246,7 @@ def fetch_all_weather():
 @st.cache_data(ttl=60) # Cache for 1 minute
 def fetch_jotform_data():
     """Fetches and processes CSV data from Jotform using the csv module."""
-    url = st.secret("JF"]
+    url = st.secret["JF"]
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"
     }
