@@ -1040,15 +1040,7 @@ HTML_TEMPLATE = """
             modalContentEl.innerHTML = '';
         }
 
-        function addTideLineBreak(html) {
-            if (!html || html.includes('data-unavailable')) return html;
-            const parts = html.split(' | ');
-            if (parts.length > 2) {
-                // Insert <br class="mt-1"> after the second item
-                return parts.slice(0, 2).join(' | ') + '<br class="mt-1"> ' + parts.slice(2).join(' | ');
-            }
-            return html;
-        }
+        // --- REMOVED addTideLineBreak function ---
 
         // --- MOVED and UPDATED Ordinal function ---
         function getOrdinal(n) {
@@ -1248,8 +1240,8 @@ HTML_TEMPLATE = """
                     // Use the long formatted date (e.g., "Today Thursday 30th...") for the TITLE
                     const fullDateLabel = dayLabels[i] || dayLookupKey; 
                     
-                    const corkTideHtml = addTideLineBreak(corkTides[dayLookupKey] || '<span class="data-unavailable">Data unavailable</span>');
-                    const kerryTideHtml = addTideLineBreak(kerryTides[dayLookupKey] || '<span class="data-unavailable">Data unavailable</span>');
+                    const corkTideString = corkTides[dayLookupKey] || '<span class="data-unavailable">Data unavailable</span>';
+                    const kerryTideString = kerryTides[dayLookupKey] || '<span class="data-unavailable">Data unavailable</span>';
 
                     detailHtml += `
                         <div class="bg-gradient-to-br from-cyan-50 to-blue-50 border-2 border-cyan-200 p-4 rounded-xl shadow-md hover:shadow-lg transition-shadow">
@@ -1267,8 +1259,35 @@ HTML_TEMPLATE = """
                     setTimeout(() => {
                         const corkEl = document.getElementById(`cork-tide-${i}`);
                         const kerryEl = document.getElementById(`kerry-tide-${i}`);
-                        if(corkEl) corkEl.innerHTML = `<strong class="text-cyan-600">Cork:</strong> ${corkTideHtml}`;
-                        if(kerryEl) kerryEl.innerHTML = `<strong class="text-cyan-600">Kerry:</strong> ${kerryTideHtml}`; // <-- CHANGED
+                        
+                        // --- NEW Logic to build 2-line div structure for Tides ---
+                        if (corkEl) {
+                            if (corkTideString.includes('data-unavailable')) {
+                                corkEl.innerHTML = `<div><strong class="text-cyan-600">Cork:</strong> <span class="data-unavailable">Data unavailable</span></div>`;
+                            } else {
+                                const parts = corkTideString.split(' | ');
+                                const line1 = parts.slice(0, 2).join(' | ');
+                                const line2 = parts.slice(2).join(' | ');
+                                corkEl.innerHTML = `<div><strong class="text-cyan-600">Cork:</strong> ${line1}</div>`;
+                                if (line2) {
+                                    corkEl.innerHTML += `<div class="mt-1">${line2}</div>`;
+                                }
+                            }
+                        }
+
+                        if (kerryEl) {
+                            if (kerryTideString.includes('data-unavailable')) {
+                                kerryEl.innerHTML = `<div><strong class="text-cyan-600">Kerry:</strong> <span class="data-unavailable">Data unavailable</span></div>`;
+                            } else {
+                                const parts = kerryTideString.split(' | ');
+                                const line1 = parts.slice(0, 2).join(' | ');
+                                const line2 = parts.slice(2).join(' | ');
+                                kerryEl.innerHTML = `<div><strong class="text-cyan-600">Kerry:</strong> ${line1}</div>`;
+                                if (line2) {
+                                    kerryEl.innerHTML += `<div class="mt-1">${line2}</div>`;
+                                }
+                            }
+                        }
                     }, 0);
                 }
                 detailHtml += '</div>';
@@ -1509,4 +1528,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
