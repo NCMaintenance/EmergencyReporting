@@ -1018,15 +1018,15 @@ HTML_TEMPLATE = """
                     }
 
                     const marker = L.circleMarker([issue.Lat, issue.Lon], {
-                        radius: getRadiusByPriority(issue.Priority),
-                        color: color, // Was '#ffffff'
-                        weight: 3,
-                        fillColor: color,
-                        fillOpacity: 0.7, // Was 0.8
-                        className: 'marker-pulse'
-                    }).addTo(markersLayer);
+                     }).addTo(markersLayer);
 
-                    marker.on('click', () => showModal(issue));
+                    marker.on('click', () => {
+                        if (mapInstance) {
+                            // This pans the map to center the clicked pin
+                            mapInstance.panTo([issue.Lat, issue.Lon]);
+                        }
+                        showModal(issue);
+                    });
                 }
             });
             
@@ -1051,7 +1051,7 @@ HTML_TEMPLATE = """
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
-                <div class="p-4 sm:p-7 space-y-5">
+                <div class="p-4 sm:p-7 space-y-5" style="max-height: 70vh; overflow-y: auto;">
                     <div class="grid grid-cols-2 gap-5">
                         <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
                             <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Utility Affected</p>
@@ -1631,6 +1631,8 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
 # import streamlit as st
 # import requests
 # import certifi
