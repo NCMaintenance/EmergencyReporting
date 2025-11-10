@@ -476,8 +476,8 @@ HTML_TEMPLATE = """
             font-size: 0.75rem;
         }
         
-        .pro-button::before {
-            content: '';
+        #modalContent {
+            /* ADDED: */
             position: absolute;
             top: 50%;
             left: 50%;
@@ -528,7 +528,7 @@ HTML_TEMPLATE = """
             font-weight: 600;
             font-size: 0.75rem;
             letter-spacing: 0.025em;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            /* position: relative; */ /* <-- This was from a previous thought, remove it */
         }
         
         @media (max-width: 768px) {
@@ -736,8 +736,10 @@ HTML_TEMPLATE = """
         </footer>
     </div>
 
-    <div id="modal" class="hidden fixed inset-0 z-50 overflow-y-auto modal-backdrop flex justify-center items-center p-4">
-        <div id="modalContent" class="pro-card rounded-2xl shadow-2xl max-w-2xl w-full mx-auto transform transition-all duration-300">
+    <!-- MODIFIED: Removed 'items-center' to allow manual vertical positioning -->
+    <div id="modal" class="hidden fixed inset-0 z-50 overflow-y-auto modal-backdrop flex justify-center p-4">
+        <!-- MODIFIED: Removed 'transform', added 'relative' to work with new JS positioning -->
+        <div id="modalContent" class="pro-card rounded-2xl shadow-2xl max-w-2xl w-full mx-auto transition-all duration-300 relative">
         </div>
     </div>
 
@@ -1017,8 +1019,15 @@ HTML_TEMPLATE = """
                         color = PRIORITY_COLORS[p] ? PRIORITY_COLORS[p].hex : PRIORITY_COLORS['Other'].hex;
                     }
 
+                    // --- FIX: Restored marker styling ---
                     const marker = L.circleMarker([issue.Lat, issue.Lon], {
-                     }).addTo(markersLayer);
+                        radius: getRadiusByPriority(issue.Priority),
+                        color: color,
+                        weight: 3,
+                        fillColor: color,
+                        fillOpacity: 0.7,
+                        className: 'marker-pulse'
+                    }).addTo(markersLayer);
 
                     marker.on('click', () => {
                         if (mapInstance) {
@@ -1083,6 +1092,22 @@ HTML_TEMPLATE = """
                 </div>
             `;
             modalEl.classList.remove('hidden');
+
+            // --- NEW: Manually position modal content in viewport ---
+            // We run this *after* setting innerHTML and removing 'hidden'
+            // so we can measure the content's height.
+            requestAnimationFrame(() => {
+                const modalContent = document.getElementById('modalContent');
+                if (modalContent) {
+                    const contentHeight = modalContent.offsetHeight;
+                    const windowHeight = window.innerHeight;
+                    // Calculate top position, add 20px padding from top as a minimum
+                    const topPos = (windowHeight - contentHeight) / 2;
+                    // Set the 'top' style. 'mx-auto' handles horizontal centering.
+                    modalContent.style.top = `${Math.max(topPos, 20)}px`;
+                }
+            });
+            // --- END NEW ---
 
             document.getElementById('closeModalButton').addEventListener('click', hideModal);
         }
@@ -1631,7 +1656,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
 # import streamlit as st
 # import requests
