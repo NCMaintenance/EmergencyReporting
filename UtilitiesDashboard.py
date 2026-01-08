@@ -275,27 +275,10 @@ HTML_TEMPLATE = """
             position: relative;
         }
         
-        /* Modal Backdrop: Positioned Absolute with Top Padding */
-        #modal {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(8px);
-            z-index: 9999;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start; /* Align content to top */
-            padding-top: 150px; /* Offset from the top to ensure visibility over map */
-        }
-
         #modalContent {
-            /* Width and basic styling */
+            /* Ensure modal content is visible when container is visible */
             width: 100%;
-            max-width: 42rem; /* max-w-2xl */
-            /* Ensure it is visible */
+            max-width: 42rem;
             display: block; 
         }
         
@@ -562,8 +545,8 @@ HTML_TEMPLATE = """
         </footer>
     </div>
 
-    <!-- MODAL -->
-    <div id="modal" class="hidden">
+    <!-- MODAL (Using Tailwind classes for structure instead of custom CSS ID to fix display bug) -->
+    <div id="modal" class="hidden fixed inset-0 w-full h-full bg-black/60 backdrop-blur-md z-[9999] flex justify-center items-start pt-32">
         <div id="modalContent" class="pro-card rounded-2xl shadow-2xl transition-all duration-300">
         </div>
     </div>
