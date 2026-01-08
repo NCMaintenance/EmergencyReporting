@@ -335,7 +335,7 @@ HTML_TEMPLATE = """
         }
         
         #map {
-            height: 600px; /* UPDATED: Fixed height to match 3 stacked charts on right */
+            height: 780px; /* UPDATED: Increased height to match 3 stacked charts on right */
             border-radius: 1rem;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
             z-index: 10;
@@ -848,7 +848,7 @@ HTML_TEMPLATE = """
 
             modalContentEl.innerHTML = `
                 <div class="p-4 sm:p-5 rounded-t-2xl text-white flex justify-between items-center" style="background: linear-gradient(135deg, ${color.hex}, ${color.hex}dd);">
-                    <h2 class="text-2xl font-bold truncate pr-4">${issue.Facility}</h2>
+                    <h2 class="text-2xl font-bold truncate pr-4" title="${issue.Facility}">${issue.Facility}</h2>
                     <button id="closeModalButton" class="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
@@ -1201,7 +1201,7 @@ def show_dashboard():
     html_content = html_content.replace("%%TIDE_DATA_PLACEHOLDER%%", tide_data_json)
     html_content = html_content.replace("%%JOTFORM_DATA_PLACEHOLDER%%", jotform_data_json)
 
-    st.components.v1.html(html_content, height=3200, scrolling=False) 
+    st.components.v1.html(html_content, height=2600, scrolling=False) 
 
 def check_password():
     correct_password = st.secrets.get("APP_PASSWORD")
@@ -1236,3 +1236,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
