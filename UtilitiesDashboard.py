@@ -321,6 +321,7 @@ HTML_TEMPLATE = """
         }
         
         #modalContent {
+            /* Ensure modal content is visible when container is visible */
             width: 100%;
             max-width: 42rem;
             display: block; 
@@ -589,8 +590,8 @@ HTML_TEMPLATE = """
         </footer>
     </div>
 
-    <!-- MODAL (Using Tailwind classes for structure instead of custom CSS ID to fix display bug) -->
-    <div id="modal" class="hidden fixed inset-0 w-full h-full bg-black/60 backdrop-blur-md z-[9999] flex justify-center items-start pt-32">
+    <!-- MODAL (Using absolute positioning relative to body for best compatibility with tall iframe) -->
+    <div id="modal" class="hidden absolute top-0 left-0 w-full h-full bg-black/60 backdrop-blur-md z-[9999] flex justify-center items-start">
         <div id="modalContent" class="pro-card rounded-2xl shadow-2xl transition-all duration-300">
         </div>
     </div>
@@ -884,6 +885,19 @@ HTML_TEMPLATE = """
                 </div>
             `;
             modalEl.classList.remove('hidden');
+
+            // --- DYNAMIC POSITIONING ---
+            const mapContainer = document.getElementById('map');
+            const offsetTop = mapContainer.offsetTop;
+            
+            const modal = document.getElementById('modal');
+            // Ensure the overlay covers the full height of the potentially long dashboard
+            modal.style.height = document.body.scrollHeight + 'px';
+
+            const modalContent = document.getElementById('modalContent');
+            // Position the content box exactly over the map area, plus a small margin
+            modalContent.style.marginTop = (offsetTop + 50) + 'px';
+
             document.getElementById('closeModalButton').addEventListener('click', hideModal);
         }
 
@@ -918,14 +932,26 @@ HTML_TEMPLATE = """
         function loadSafetyAlerts() {
             const tickerEl = document.getElementById('safetyAlertsTicker');
             try {
-                if (!PRELOADED_WEATHER_DATA || !PRELOADED_WEATHER_DATA.alertsCork || !PRELOADED_WEATHER_DATA.alertsKerry) {
+                if (!PRELOADED_WEATHER_DATA) {
                     tickerEl.style.display = 'none';
                     return;
                 }
+                
                 const { alertsCork, alertsKerry } = PRELOADED_WEATHER_DATA;
+
+                if (alertsCork === null || alertsKerry === null) {
+                    tickerEl.innerHTML = `
+                        <div class="bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-300 p-4 flex items-center rounded-2xl shadow-lg">
+                            <svg class="w-7 h-7 text-orange-600 mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                            <span class="font-bold text-orange-800 text-base">⚠ WEATHER WARNING SYSTEM OFFLINE</span>
+                            <span class="ml-4 text-orange-600 text-sm">Unable to retrieve alerts. Please check Met Éireann directly.</span>
+                        </div>`;
+                    return;
+                }
+
                 const allAlerts = [];
-                if (alertsCork.alerts) alertsCork.alerts.forEach(a => allAlerts.push({location: 'CORK', headline: a.headline || a.event, severity: a.severity}));
-                if (alertsKerry.alerts) alertsKerry.alerts.forEach(a => allAlerts.push({location: 'KERRY', headline: a.headline || a.event, severity: a.severity}));
+                if (alertsCork && alertsCork.alerts) alertsCork.alerts.forEach(a => allAlerts.push({location: 'CORK', headline: a.headline || a.event, severity: a.severity}));
+                if (alertsKerry && alertsKerry.alerts) alertsKerry.alerts.forEach(a => allAlerts.push({location: 'KERRY', headline: a.headline || a.event, severity: a.severity}));
 
                 if (allAlerts.length === 0) {
                     tickerEl.innerHTML = `
@@ -1048,10 +1074,16 @@ HTML_TEMPLATE = """
 
                 // Warnings Column
                 detailHtml += '<div class="space-y-3"><h4 class="text-base font-bold text-gray-800 border-b-2 border-red-300 pb-2 mb-3 flex items-center">Active Met Éireann Warnings</h4><div class="bg-gradient-to-br from-red-50 to-orange-50 border-2 border-red-200 p-4 rounded-xl shadow-md">';
-                const cW = (alertsCork && alertsCork.alerts) ? alertsCork.alerts.map(a=>`<li><strong class="text-red-700">Cork:</strong> ${a.headline}</li>`).join('') : '';
-                const kW = (alertsKerry && alertsKerry.alerts) ? alertsKerry.alerts.map(a=>`<li><strong class="text-red-700">Kerry:</strong> ${a.headline}</li>`).join('') : '';
-                if(cW || kW) detailHtml += `<ul class="space-y-2 text-sm text-gray-800">${cW}${kW}</ul>`;
-                else detailHtml += '<p class="text-sm text-green-700 font-semibold">No active warnings for Cork or Kerry.</p>';
+                
+                // --- NEW CHECK: If alerts are NULL, show "Unknown" instead of "No Warnings"
+                if (alertsCork === null || alertsKerry === null) {
+                     detailHtml += '<p class="text-sm text-orange-700 font-semibold flex items-center"><svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>Status Unknown - Check Met Éireann</p>';
+                } else {
+                    const cW = (alertsCork && alertsCork.alerts) ? alertsCork.alerts.map(a=>`<li><strong class="text-red-700">Cork:</strong> ${a.headline}</li>`).join('') : '';
+                    const kW = (alertsKerry && alertsKerry.alerts) ? alertsKerry.alerts.map(a=>`<li><strong class="text-red-700">Kerry:</strong> ${a.headline}</li>`).join('') : '';
+                    if(cW || kW) detailHtml += `<ul class="space-y-2 text-sm text-gray-800">${cW}${kW}</ul>`;
+                    else detailHtml += '<p class="text-sm text-green-700 font-semibold">No active warnings for Cork or Kerry.</p>';
+                }
                 detailHtml += '</div></div></div>';
 
                 weatherCardContent.innerHTML = `
@@ -1153,7 +1185,7 @@ def show_dashboard():
     html_content = html_content.replace("%%TIDE_DATA_PLACEHOLDER%%", tide_data_json)
     html_content = html_content.replace("%%JOTFORM_DATA_PLACEHOLDER%%", jotform_data_json)
 
-    st.components.v1.html(html_content, height=2500, scrolling=False) 
+    st.components.v1.html(html_content, height=3200, scrolling=False) 
 
 def check_password():
     correct_password = st.secrets.get("APP_PASSWORD")
