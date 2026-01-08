@@ -939,6 +939,7 @@ HTML_TEMPLATE = """
                 
                 const { alertsCork, alertsKerry } = PRELOADED_WEATHER_DATA;
 
+                // --- NEW CHECK: If alerts are NULL, the connection failed. Show "Offline" message.
                 if (alertsCork === null || alertsKerry === null) {
                     tickerEl.innerHTML = `
                         <div class="bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-300 p-4 flex items-center rounded-2xl shadow-lg">
@@ -1066,8 +1067,18 @@ HTML_TEMPLATE = """
                     setTimeout(() => {
                         const elC = document.getElementById(`cork-tide-${i}`);
                         const elK = document.getElementById(`kerry-tide-${i}`);
-                        if(elC) elC.innerHTML = `<div><strong class="text-cyan-600">Cork:</strong> ${tsC.replace(/ \| /g, '</div><div class="mt-1">')}</div>`;
-                        if(elK) elK.innerHTML = `<div><strong class="text-cyan-600">Kerry:</strong> ${tsK.replace(/ \| /g, '</div><div class="mt-1">')}</div>`;
+                        
+                        // Helper to format tide string: 2 events per line
+                        const formatTides = (str) => {
+                            if(str.includes('unavailable')) return str;
+                            const parts = str.split(' | ');
+                            if(parts.length <= 2) return str;
+                            // Join first two, then add newline div, then join rest
+                            return parts.slice(0, 2).join(' | ') + '</div><div class="mt-1">' + parts.slice(2).join(' | ');
+                        };
+
+                        if(elC) elC.innerHTML = `<div><strong class="text-cyan-600">Cork:</strong> ${formatTides(tsC)}</div>`;
+                        if(elK) elK.innerHTML = `<div><strong class="text-cyan-600">Kerry:</strong> ${formatTides(tsK)}</div>`;
                     }, 0);
                 }
                 detailHtml += '</div>';
