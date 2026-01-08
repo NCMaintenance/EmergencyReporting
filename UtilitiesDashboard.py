@@ -335,7 +335,7 @@ HTML_TEMPLATE = """
         }
         
         #map {
-            height: 800px; /* UPDATED: Increased height to match 3 stacked charts on right */
+            height: 850px; /* UPDATED: Increased height to match 3 stacked charts on right */
             border-radius: 1rem;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
             z-index: 10;
@@ -1201,7 +1201,7 @@ def show_dashboard():
     html_content = html_content.replace("%%TIDE_DATA_PLACEHOLDER%%", tide_data_json)
     html_content = html_content.replace("%%JOTFORM_DATA_PLACEHOLDER%%", jotform_data_json)
 
-    st.components.v1.html(html_content, height=2800, scrolling=False) 
+    st.components.v1.html(html_content, height=2650, scrolling=False) 
 
 def check_password():
     correct_password = st.secrets.get("APP_PASSWORD")
