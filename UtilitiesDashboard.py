@@ -19,7 +19,7 @@ FORECAST_URL = 'https://api.open-meteo.com/v1/forecast?latitude=51.90,52.14&long
 ALERTS_CORK_URL = 'https://meteo-api.open-meteo.com/v1/meteoalerts?latitude=51.90&longitude=-8.47&domains=met&forecast_days=3'
 ALERTS_KERRY_URL = 'https://meteo-api.open-meteo.com/v1/meteoalerts?latitude=52.14&longitude=-10.27&domains=met&forecast_days=3'
 
-# --- TIDE SCRAPING FUNCTIONS (from user) ---
+# --- TIDE SCRAPING FUNCTIONS ---
 
 def get_day_suffix(day):
     """Returns the ordinal suffix (st, nd, rd, th) for a given day."""
@@ -32,14 +32,6 @@ def get_day_suffix(day):
 def scrape_tide_times(location, url, target_days):
     """
     Scrapes tide times for a single location.
-
-    Args:
-        location (str): The name of the location (e.g., "Cork").
-        url (str): The URL to scrape.
-        target_days (list): A list of strings for the target days.
-    
-    Returns:
-        dict: A dictionary of tide data for the target days, or None on failure.
     """
     # Set a user-agent to mimic a browser
     headers = {
@@ -50,7 +42,7 @@ def scrape_tide_times(location, url, target_days):
     try:
         # Fetch the webpage, disabling SSL verification
         response = requests.get(url, headers=headers, verify=False)
-        print(f"--- [DEBUG] {location} response status: {response.status_code} ---", file=sys.stderr)
+        # print(f"--- [DEBUG] {location} response status: {response.status_code} ---", file=sys.stderr)
         response.raise_for_status()  # Raise an error for bad responses
 
         # Parse the HTML
@@ -62,7 +54,7 @@ def scrape_tide_times(location, url, target_days):
         if not table:
             print(f"--- [DEBUG] Could not find table with id='tide-table' for {location}. Structure may have changed. ---", file=sys.stderr)
             return None
-        print(f"--- [DEBUG] Found 'tide-table' for {location}. ---", file=sys.stderr)
+        # print(f"--- [DEBUG] Found 'tide-table' for {location}. ---", file=sys.stderr)
 
         # --- New, more robust table parsing logic ---
         
@@ -102,7 +94,7 @@ def scrape_tide_times(location, url, target_days):
         if not headers or not data_cells or len(headers) != len(data_cells):
             print(f"--- [DEBUG] Table structure mismatch for {location}. Found {len(headers)} headers and {len(data_cells)} cells. ---", file=sys.stderr)
             return None
-        print(f"--- [DEBUG] {location} - Headers: {len(headers)}, Cells: {len(data_cells)} ---", file=sys.stderr)
+        # print(f"--- [DEBUG] {location} - Headers: {len(headers)}, Cells: {len(data_cells)} ---", file=sys.stderr)
 
 
         # Map days to their tide data
@@ -127,7 +119,7 @@ def scrape_tide_times(location, url, target_days):
                 # Join with " | "
                 daily_data[day_name] = " | ".join(tide_events)
 
-        print(f"--- [DEBUG] {location} - Raw Scraped Data: {daily_data} ---", file=sys.stderr)
+        # print(f"--- [DEBUG] {location} - Raw Scraped Data: {daily_data} ---", file=sys.stderr)
 
         # Filter for the target days
         location_tides = {}
@@ -137,7 +129,7 @@ def scrape_tide_times(location, url, target_days):
             else:
                 location_tides[day] = "Data not found"
         
-        print(f"--- [DEBUG] {location} - Filtered Data: {location_tides} ---", file=sys.stderr)
+        # print(f"--- [DEBUG] {location} - Filtered Data: {location_tides} ---", file=sys.stderr)
         return location_tides
 
     except requests.exceptions.RequestException as e:
@@ -153,7 +145,7 @@ def fetch_scraped_tides():
     
     locations_to_scrape = {
         "Cork": "https://www.tidetime.org/europe/ireland/cork.htm",
-        "Kerry": "https://www.tidetime.org/europe/ireland/fenit.htm" # <-- CHANGED
+        "Kerry": "https://www.tidetime.org/europe/ireland/fenit.htm" 
     }
 
     # --- Generate Dynamic Target Days ---
@@ -166,7 +158,7 @@ def fetch_scraped_tides():
     day_format = lambda dt: f"{dt.strftime('%a')}, {dt.day}{get_day_suffix(dt.day)}"
 
     target_days_list = [day_format(today), day_format(tomorrow), day_format(next_day)]
-    print(f"--- [DEBUG] Targeting days: {', '.join(target_days_list)} ---", file=sys.stderr)
+    # print(f"--- [DEBUG] Targeting days: {', '.join(target_days_list)} ---", file=sys.stderr)
     # --- End of Dynamic Days ---
 
     all_scraped_data = {}
@@ -205,45 +197,9 @@ def fetch_all_weather():
     except requests.exceptions.RequestException as e:
         print(f"Error fetching weather data: {e}", file=sys.stderr)
         
-        # --- Create dynamic dummy data for forecasts ---
-        today = date.today()
-        dummy_dates = [(today + timedelta(days=i)).strftime('%Y-%m-%d') for i in range(3)]
-        
-        dummy_forecasts = [
-            { 
-                "current": { "temperature_2m": 15.1 }, 
-                "daily": { 
-                    "time": dummy_dates, # <-- Use dynamic dates
-                    "weathercode": [3, 61, 3], 
-                    "temperature_2m_max": [17, 18, 16], 
-                    "temperature_2m_min": [10, 11, 9], 
-                    "wind_speed_10m_max": [15, 18, 20], 
-                    "wind_gusts_10m_max": [30, 35, 40],
-                    "wind_direction_10m_dominant": [270, 180, 90] 
-                } 
-            },
-            { 
-                "current": { "temperature_2m": 14.6 }, 
-                "daily": { 
-                    "time": dummy_dates, # <-- Use dynamic dates
-                    "weathercode": [61, 3, 61], 
-                    "temperature_2m_max": [16, 17, 15], 
-                    "temperature_2m_min": [9, 10, 8], 
-                    "wind_speed_10m_max": [20, 22, 25], 
-                    "wind_gusts_10m_max": [40, 45, 50],
-                    "wind_direction_10m_dominant": [190, 80, 280]
-                } 
-            }
-        ]
-
-        # --- *** MODIFIED *** ---
-        # Return empty alerts on failure, not hardcoded ones.
-        # This fixes the user's issue of seeing old, hardcoded warnings.
-        return {
-            "forecasts": dummy_forecasts,
-            "alertsCork": { "alerts": [] },
-            "alertsKerry": { "alerts": [] },
-        }
+        # --- REMOVED DUMMY DATA ---
+        # Return None so the frontend shows a "Data Unavailable" error naturally
+        return None
 
 # --- Jotform Data Fetching (No Pandas) ---
 @st.cache_data(ttl=60) # Cache for 1 minute
@@ -323,7 +279,7 @@ HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HSE Utility Dashboard</title>
+    <title>HSE SouthWest Facilities Dashboard</title>
     <link rel="icon" href="https://www.hse.ie/favicon-32x32.png" type="image/png">
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -528,7 +484,6 @@ HTML_TEMPLATE = """
             font-weight: 600;
             font-size: 0.75rem;
             letter-spacing: 0.025em;
-            /* position: relative; */ /* <-- This was from a previous thought, remove it */
         }
         
         @media (max-width: 768px) {
@@ -580,7 +535,7 @@ HTML_TEMPLATE = """
                 </div>
                 <div class="w-full sm:w-auto">
                     <h1 class="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                        HSE Facilities Dashboard
+                        HSE SouthWest Facilities Dashboard
                     </h1>
                     <p class="text-teal-100 text-sm mt-1 font-medium">Real-time Infrastructure Monitoring & Safety Management</p>
                 </div>
@@ -692,7 +647,7 @@ HTML_TEMPLATE = """
         </div>
 
         <footer class="mt-12 text-center text-gray-500 text-xs font-medium">
-            <!-- === NEW QR CODE LINKS SECTION === -->
+            <!-- === QR CODE LINKS SECTION === -->
             <div class="mb-12 pt-8 border-t border-gray-300">
                 <h3 class="text-lg font-bold text-gray-800 mb-6">Quick Links</h3>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-12 max-w-5xl mx-auto">
@@ -1224,7 +1179,7 @@ HTML_TEMPLATE = """
                 const tides = PRELOADED_TIDE_DATA;
                 
                 if (!forecasts || forecasts.length < 2 || !tides) {
-                     throw new Error('Forecast or tide data is incomplete.');
+                      throw new Error('Forecast or tide data is incomplete.');
                 }
 
                 const [cork, kerry] = forecasts; 
@@ -1582,7 +1537,8 @@ def show_dashboard():
     jotform_data_json = fetch_jotform_data()
     
     # Convert data to JSON string for injection
-    weather_data_json = json.dumps(weather_data)
+    # If weather_data is None (due to error), this becomes "null" in JS
+    weather_data_json = json.dumps(weather_data) 
     tide_data_json = json.dumps(tide_data)
 
     # Replace the placeholders in the HTML template
@@ -1591,7 +1547,8 @@ def show_dashboard():
     html_content = html_content.replace("%%JOTFORM_DATA_PLACEHOLDER%%", jotform_data_json)
 
     # Render the HTML in Streamlit
-    st.components.v1.html(html_content, height=2200, scrolling=True) # <-- Increased height for new footer content
+    # MODIFIED: Increased height slightly and disabled scrolling to remove double scrollbar
+    st.components.v1.html(html_content, height=2500, scrolling=False) 
 
 # --- NEW: Password check function ---
 def check_password():
@@ -1639,7 +1596,7 @@ def main():
     """
     st.set_page_config(
         layout="wide", 
-        page_title="HSE Dashboard", 
+        page_title="HSE SouthWest Facilities Dashboard", # <-- UPDATED TITLE HERE
         page_icon="https://www.hse.ie/favicon-32x32.png"
     )
 
@@ -1656,7 +1613,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 # import streamlit as st
 # import requests
 # import certifi
@@ -1895,11 +1851,12 @@ if __name__ == "__main__":
 #             }
 #         ]
 
+#         # --- *** MODIFIED *** ---
+#         # Return empty alerts on failure, not hardcoded ones.
+#         # This fixes the user's issue of seeing old, hardcoded warnings.
 #         return {
 #             "forecasts": dummy_forecasts,
-#             "alertsCork": { "alerts": [
-#                 { "headline": "Yellow Wind Warning for Cork", "severity": "Moderate", "event": "Wind", "start": "2025-10-30T06:00", "end": "2025-10-30T18:00" }
-#             ] },
+#             "alertsCork": { "alerts": [] },
 #             "alertsKerry": { "alerts": [] },
 #         }
 
@@ -2134,8 +2091,8 @@ if __name__ == "__main__":
 #             font-size: 0.75rem;
 #         }
         
-#         .pro-button::before {
-#             content: '';
+#         #modalContent {
+#             /* ADDED: */
 #             position: absolute;
 #             top: 50%;
 #             left: 50%;
@@ -2186,7 +2143,7 @@ if __name__ == "__main__":
 #             font-weight: 600;
 #             font-size: 0.75rem;
 #             letter-spacing: 0.025em;
-#             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+#             /* position: relative; */ /* <-- This was from a previous thought, remove it */
 #         }
         
 #         @media (max-width: 768px) {
@@ -2394,8 +2351,10 @@ if __name__ == "__main__":
 #         </footer>
 #     </div>
 
-#     <div id="modal" class="hidden fixed inset-0 z-50 overflow-y-auto modal-backdrop flex justify-center items-center p-4">
-#         <div id="modalContent" class="pro-card rounded-2xl shadow-2xl max-w-2xl w-full mx-auto transform transition-all duration-300">
+#     <!-- MODIFIED: Removed 'items-center' to allow manual vertical positioning -->
+#     <div id="modal" class="hidden fixed inset-0 z-50 overflow-y-auto modal-backdrop flex justify-center p-4">
+#         <!-- MODIFIED: Removed 'transform', added 'relative' to work with new JS positioning -->
+#         <div id="modalContent" class="pro-card rounded-2xl shadow-2xl max-w-2xl w-full mx-auto transition-all duration-300 relative">
 #         </div>
 #     </div>
 
@@ -2675,16 +2634,23 @@ if __name__ == "__main__":
 #                         color = PRIORITY_COLORS[p] ? PRIORITY_COLORS[p].hex : PRIORITY_COLORS['Other'].hex;
 #                     }
 
+#                     // --- FIX: Restored marker styling ---
 #                     const marker = L.circleMarker([issue.Lat, issue.Lon], {
 #                         radius: getRadiusByPriority(issue.Priority),
-#                         color: color, // Was '#ffffff'
+#                         color: color,
 #                         weight: 3,
 #                         fillColor: color,
-#                         fillOpacity: 0.7, // Was 0.8
+#                         fillOpacity: 0.7,
 #                         className: 'marker-pulse'
 #                     }).addTo(markersLayer);
 
-#                     marker.on('click', () => showModal(issue));
+#                     marker.on('click', () => {
+#                         if (mapInstance) {
+#                             // This pans the map to center the clicked pin
+#                             mapInstance.panTo([issue.Lat, issue.Lon]);
+#                         }
+#                         showModal(issue);
+#                     });
 #                 }
 #             });
             
@@ -2709,7 +2675,7 @@ if __name__ == "__main__":
 #                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
 #                     </button>
 #                 </div>
-#                 <div class="p-4 sm:p-7 space-y-5">
+#                 <div class="p-4 sm:p-7 space-y-5" style="max-height: 70vh; overflow-y: auto;">
 #                     <div class="grid grid-cols-2 gap-5">
 #                         <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
 #                             <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Utility Affected</p>
@@ -2741,6 +2707,22 @@ if __name__ == "__main__":
 #                 </div>
 #             `;
 #             modalEl.classList.remove('hidden');
+
+#             // --- NEW: Manually position modal content in viewport ---
+#             // We run this *after* setting innerHTML and removing 'hidden'
+#             // so we can measure the content's height.
+#             requestAnimationFrame(() => {
+#                 const modalContent = document.getElementById('modalContent');
+#                 if (modalContent) {
+#                     const contentHeight = modalContent.offsetHeight;
+#                     const windowHeight = window.innerHeight;
+#                     // Calculate top position, add 20px padding from top as a minimum
+#                     const topPos = (windowHeight - contentHeight) / 2;
+#                     // Set the 'top' style. 'mx-auto' handles horizontal centering.
+#                     modalContent.style.top = `${Math.max(topPos, 20)}px`;
+#                 }
+#             });
+#             // --- END NEW ---
 
 #             document.getElementById('closeModalButton').addEventListener('click', hideModal);
 #         }
