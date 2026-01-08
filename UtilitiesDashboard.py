@@ -194,7 +194,7 @@ def fetch_all_weather():
                 "alertsCork": alerts_cork_res.json(),
                 "alertsKerry": alerts_kerry_res.json(),
             }
-    # UPDATED: Catch broader Exception to ensure fallback always triggers on any error
+    # Catch all exceptions to ensure fallback always triggers
     except Exception as e:
         print(f"Error fetching weather data: {e}", file=sys.stderr)
         
@@ -683,9 +683,8 @@ HTML_TEMPLATE = """
         </footer>
     </div>
 
-    <!-- MODIFIED: Removed 'items-center' to allow manual vertical positioning -->
-    <div id="modal" class="hidden fixed inset-0 z-50 overflow-y-auto modal-backdrop flex justify-center p-4">
-        <!-- MODIFIED: Removed 'transform', added 'relative' to work with new JS positioning -->
+    <!-- MODIFIED: Changed position to fixed with explicit top padding to ensure visibility at top of viewport -->
+    <div id="modal" class="hidden fixed inset-0 z-50 overflow-y-auto modal-backdrop flex justify-center items-start pt-10 sm:pt-20">
         <div id="modalContent" class="pro-card rounded-2xl shadow-2xl max-w-2xl w-full mx-auto transition-all duration-300 relative">
         </div>
     </div>
@@ -1040,22 +1039,10 @@ HTML_TEMPLATE = """
             `;
             modalEl.classList.remove('hidden');
 
-            // --- NEW: Manually position modal content in viewport ---
-            // We run this *after* setting innerHTML and removing 'hidden'
-            // so we can measure the content's height.
-            requestAnimationFrame(() => {
-                const modalContent = document.getElementById('modalContent');
-                if (modalContent) {
-                    const contentHeight = modalContent.offsetHeight;
-                    const windowHeight = window.innerHeight;
-                    // Calculate top position, add 20px padding from top as a minimum
-                    const topPos = (windowHeight - contentHeight) / 2;
-                    // Set the 'top' style. 'mx-auto' handles horizontal centering.
-                    modalContent.style.top = `${Math.max(topPos, 20)}px`;
-                }
-            });
-            // --- END NEW ---
-
+            // --- UPDATED: Removed complex JS calculation for positioning. 
+            // We now rely on simple CSS classes in the HTML (items-start pt-20) 
+            // to position the modal near the top of the iframe.
+            
             document.getElementById('closeModalButton').addEventListener('click', hideModal);
         }
 
@@ -1393,233 +1380,3 @@ HTML_TEMPLATE = """
                 weatherCardContent.innerHTML = `<p class="text-red-600 font-semibold p-4">Error loading weather data: ${error.message}</p>`;
             }
         }
-
-        function initMap() {
-            try {
-                mapInstance = L.map('map').setView([52.1, -9.5], 8); // <-- Widened view and zoomed out to 8
-                L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                    attribution: '© OpenStreetMap contributors, © CARTO',
-                    maxZoom: 19
-                }).addTo(mapInstance);
-                markersLayer = L.featureGroup().addTo(mapInstance);
-                document.getElementById('map').classList.remove('loading-shimmer');
-            } catch (e) {
-                console.error("Map init error:", e);
-                document.getElementById('map').innerHTML = '<p class="text-red-600 font-semibold p-4">Error loading map. Please refresh.</p>';
-            }
-        }
-
-        // --- Init & Event Listeners ---
-        document.addEventListener('DOMContentLoaded', () => {
-            // --- 1. Assign DOM Elements ---
-            toggleButton = document.getElementById('toggleButton');
-            mapToggle = document.getElementById('mapToggle');
-            totalCard = document.getElementById('totalCard');
-            ongoingCard = document.getElementById('ongoingCard');
-            completeCard = document.getElementById('completeCard');
-            utilityChartEl = document.getElementById('utilityChart');
-            priorityChartContainer = document.getElementById('priorityChartContainer');
-            priorityChartEl = document.getElementById('priorityChart');
-            modalEl = document.getElementById('modal');
-            modalContentEl = document.getElementById('modalContent');
-            weatherCardContent = document.getElementById('weatherCardContent');
-
-            // --- 2. Check if elements exist before proceeding ---
-            if (!toggleButton || !mapToggle || !utilityChartEl || !priorityChartContainer || !modalEl || !weatherCardContent) {
-                console.error("Critical DOM elements are missing. Dashboard cannot initialize.");
-                return; // Stop if essential elements are missing
-            }
-            
-            // --- 3. Initialize Dashboard ---
-            initMap();
-            loadSafetyAlerts();
-            loadWeatherData();
-            updateDashboard();
-            
-            // --- Set initial button text based on default state ---
-            toggleButton.textContent = showComplete ? 'Ongoing Only' : 'Show All';
-
-            // --- 4. Attach Event Listeners ---
-            toggleButton.addEventListener('click', () => {
-                showComplete = !showComplete;
-                toggleButton.textContent = showComplete ? 'Ongoing Only' : 'Show All';
-                toggleButton.classList.toggle('bg-red-600', !showComplete);
-                toggleButton.classList.toggle('hover:bg-red-700', !showComplete);
-                toggleButton.classList.toggle('bg-gray-600', showComplete);
-                toggleButton.classList.toggle('hover:bg-gray-700', showComplete);
-                updateDashboard();
-            });
-            
-            mapToggle.addEventListener('click', () => {
-                mapColorMode = mapColorMode === 'utility' ? 'priority' : 'utility';
-                mapToggle.textContent = mapColorMode === 'utility' ? 'By Utility' : 'By Priority';
-                mapToggle.classList.toggle('bg-blue-600', mapColorMode === 'utility');
-                mapToggle.classList.toggle('hover:bg-blue-700', mapColorMode === 'utility');
-                mapToggle.classList.toggle('bg-orange-600', mapColorMode === 'priority');
-                mapToggle.classList.toggle('hover:bg-orange-700', mapColorMode === 'priority');
-                
-                // We only need to update the map, not the whole dashboard
-                const filteredData = RAW_DATA.filter(issue => showComplete || issue.Status === 'Ongoing');
-                updateMap(filteredData);
-            });
-
-            modalEl.addEventListener('click', (e) => {
-                if (e.target === modalEl) {
-                    hideModal();
-                }
-            });
-
-            // --- 5. Start Live Clock ---
-            function updateLiveClock() {
-                const now = new Date();
-                const day = now.toLocaleDateString('en-IE', { weekday: 'long' });
-                const date = getOrdinal(now.getDate()); // Use global getOrdinal
-                const month = now.toLocaleDateString('en-IE', { month: 'long' });
-                const year = now.getFullYear();
-                const timeString = now.toLocaleTimeString('en-IE', { hour: '2-digit', minute: '2-digit' });
-                
-                const clockEl = document.getElementById('live-clock');
-                if (clockEl) {
-                    clockEl.innerHTML = `${day} the ${date} of ${month} ${year} | ${timeString}`;
-                }
-            }
-            updateLiveClock(); // Run once immediately
-            setInterval(updateLiveClock, 1000); // Update clock every second
-
-            // --- 6. NEW: Generate QR Codes ---
-            try {
-                const qrSize = 128;
-                const hseGreen = '#02594C'; // The user's "nice green"
-
-                if (document.getElementById('qr-jotform')) {
-                    new QRCode(document.getElementById("qr-jotform"), {
-                        text: "https://form.jotform.com/250264606365052",
-                        width: qrSize,
-                        height: qrSize,
-                        colorDark: hseGreen,
-                        colorLight: "#ffffff",
-                        correctLevel: QRCode.CorrectLevel.H
-                    });
-                }
-
-                if (document.getElementById('qr-esb')) {
-                    new QRCode(document.getElementById("qr-esb"), {
-                        text: "https://powercheck.esbnetworks.ie/",
-                        width: qrSize,
-                        height: qrSize,
-                        colorDark: hseGreen,
-                        colorLight: "#ffffff",
-                        correctLevel: QRCode.CorrectLevel.H
-                    });
-                }
-
-                if (document.getElementById('qr-what3words')) {
-                    new QRCode(document.getElementById("qr-what3words"), {
-                        text: "https://what3words.com/swaps.string.bland",
-                        width: qrSize,
-                        height: qrSize,
-                        colorDark: hseGreen,
-                        colorLight: "#ffffff",
-                        correctLevel: QRCode.CorrectLevel.H
-                    });
-                }
-            } catch(e) {
-                console.error("Failed to generate QR codes:", e);
-                // Hide the QR sections if the library failed
-                document.getElementById('qr-jotform')?.parentElement.parentElement.classList.add('hidden');
-                document.getElementById('qr-esb')?.parentElement.parentElement.classList.add('hidden');
-                document.getElementById('qr-what3words')?.parentElement.parentElement.classList.add('hidden');
-            }
-        });
-    </script>
-</body>
-</html>
-"""
-
-# --- 3. STREAMLIT APP LOGIC ---
-
-# This function contains your original dashboard
-def show_dashboard():
-    """Fetches data and displays the full HTML dashboard."""
-    # Fetch data
-    weather_data = fetch_all_weather()
-    tide_data = fetch_scraped_tides() # <-- Decoupled fetch
-    jotform_data_json = fetch_jotform_data()
-    
-    # Convert data to JSON string for injection
-    # If weather_data is None (due to error), this becomes "null" in JS
-    weather_data_json = json.dumps(weather_data) 
-    tide_data_json = json.dumps(tide_data)
-
-    # Replace the placeholders in the HTML template
-    html_content = HTML_TEMPLATE.replace("%%WEATHER_DATA_PLACEHOLDER%%", weather_data_json)
-    html_content = html_content.replace("%%TIDE_DATA_PLACEHOLDER%%", tide_data_json)
-    html_content = html_content.replace("%%JOTFORM_DATA_PLACEHOLDER%%", jotform_data_json)
-
-    # Render the HTML in Streamlit
-    # MODIFIED: Increased height slightly and disabled scrolling to remove double scrollbar
-    st.components.v1.html(html_content, height=2500, scrolling=False) 
-
-# --- NEW: Password check function ---
-def check_password():
-    """
-    Displays a password input field and returns True if the password is correct,
-    False otherwise.
-    """
-    
-    # Get the correct password from secrets.
-    # st.secrets.get() is safer as it returns None if not found,
-    # rather than raising an exception.
-    correct_password = st.secrets.get("APP_PASSWORD")
-
-    # If the password is not set in st.secrets, show an error and stop.
-    if not correct_password:
-        st.error("Application Error: Password is not configured.")
-        st.info("Please add `APP_PASSWORD = 'your_secret_password'` to your Streamlit secrets.")
-        return False
-
-    # --- Impressive Landing Page ---
-    # We use st.container to group and center the login elements
-    with st.container():
-        st.image("https://www.hse.ie/image-library/hse-site-logo-2021.svg", width=200)
-        st.title("Secure Access Portal")
-        st.info("Please authenticate to proceed to the operations dashboard.")
-        
-        password = st.text_input("Password", type="password")
-        
-        if st.button("Authenticate"):
-            if password == correct_password:
-                # If correct, set a flag in session_state and return True
-                st.session_state["password_correct"] = True
-                return True
-            else:
-                st.error("Access Denied. Please check your credentials.")
-                return False
-    return False
-
-# --- NEW: Main function with password logic ---
-def main():
-    """
-    Main app entry point.
-    Handles page configuration and password checking before
-    displaying the main dashboard.
-    """
-    st.set_page_config(
-        layout="wide", 
-        page_title="HSE SouthWest Facilities Dashboard", # <-- UPDATED TITLE HERE
-        page_icon="https://www.hse.ie/favicon-32x32.png"
-    )
-
-    # Check if the 'password_correct' flag is in session_state and is True
-    if st.session_state.get("password_correct", False):
-        # If password is correct, show the main dashboard
-        show_dashboard()
-    else:
-        # If not authenticated, show the password check page
-        if check_password():
-            # If check_password() returns True (meaning login was successful *this time*),
-            # rerun the app immediately to show the dashboard.
-            st.rerun()
-
-if __name__ == "__main__":
-    main()
