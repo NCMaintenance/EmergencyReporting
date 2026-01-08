@@ -15,9 +15,11 @@ import re
 # --- 1. PYTHON DATA FETCHING LOGIC ---
 
 # --- Weather Fetching ---
-FORECAST_URL = 'https://api.open-meteo.com/v1/forecast?latitude=51.90,52.14&longitude=-8.47,-10.27&current=temperature_2m&daily=time,weathercode,temperature_2m_max,temperature_2m_min,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant&timezone=Europe%2FDublin&forecast_days=3'
-ALERTS_CORK_URL = 'https://meteo-api.open-meteo.com/v1/meteoalerts?latitude=51.90&longitude=-8.47&domains=met&forecast_days=3'
-ALERTS_KERRY_URL = 'https://meteo-api.open-meteo.com/v1/meteoalerts?latitude=52.14&longitude=-10.27&domains=met&forecast_days=3'
+# 1. Main Forecast (Open-Meteo - Working)
+FORECAST_URL = 'https://api.open-meteo.com/v1/forecast?latitude=51.90,52.14&longitude=-8.47,-10.27&current=temperature_2m&daily=weathercode,temperature_2m_max,temperature_2m_min,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant&timezone=Europe%2FDublin&forecast_days=3'
+
+# 2. Alerts (Met Éireann Official JSON - Working/Allowed on Network)
+MET_EIREANN_ALERTS_URL = "https://www.met.ie/Open_Data/json/warning_IRELAND.json"
 
 # --- TIDE SCRAPING FUNCTIONS ---
 
@@ -148,22 +150,65 @@ def fetch_scraped_tides():
 # --- Modified Weather Fetching Function ---
 @st.cache_data(ttl=60) # Cache for 1 minute
 def fetch_all_weather():
-    """Fetches weather data from Open-Meteo."""
+    """Fetches weather data from Open-Meteo AND official alerts from Met Eireann."""
     try:
         with requests.Session() as s:
-            # Use verify=False to bypass SSL errors
+            # 1. Fetch Main Forecast (Critical - Open Meteo)
             forecast_res = s.get(FORECAST_URL, verify=False)
-            alerts_cork_res = s.get(ALERTS_CORK_URL, verify=False)
-            alerts_kerry_res = s.get(ALERTS_KERRY_URL, verify=False)
-
             forecast_res.raise_for_status()
-            alerts_cork_res.raise_for_status()
-            alerts_kerry_res.raise_for_status()
+            
+            # 2. Fetch Alerts (New Source - Met Eireann JSON)
+            alerts_cork_data = {"alerts": []}
+            alerts_kerry_data = {"alerts": []}
+            
+            try:
+                # We use specific headers to act like a browser
+                me_headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                }
+                alerts_res = s.get(MET_EIREANN_ALERTS_URL, headers=me_headers, verify=False, timeout=8)
+                
+                if alerts_res.status_code == 200:
+                    raw_alerts = alerts_res.json()
+                    
+                    # Met Eireann JSON is a list of objects. We need to filter by county.
+                    # Each object typically has a "regions" list.
+                    
+                    for alert in raw_alerts:
+                        # Extract relevant fields
+                        headline = alert.get('headline', 'Weather Warning')
+                        severity = alert.get('level', 'Moderate') # Met.ie uses 'level' (Yellow/Orange/Red)
+                        regions = alert.get('regions', [])
+                        
+                        # Handle case where regions might be a string or list
+                        if isinstance(regions, str):
+                            regions = [regions]
+                            
+                        # Format for our dashboard
+                        dashboard_alert = {
+                            "headline": headline,
+                            "severity": severity,
+                            "event": alert.get('type', 'Warning')
+                        }
+                        
+                        # Check for Cork
+                        if "Cork" in regions or "Cork" in headline:
+                            alerts_cork_data["alerts"].append(dashboard_alert)
+                            
+                        # Check for Kerry
+                        if "Kerry" in regions or "Kerry" in headline:
+                            alerts_kerry_data["alerts"].append(dashboard_alert)
+                            
+            except Exception as e:
+                print(f"Warning: Met Eireann Alerts fetch failed ({e}).", file=sys.stderr)
+                # If connection fails completely, we set to None to indicate "Offline"
+                alerts_cork_data = None 
+                alerts_kerry_data = None
 
             return {
                 "forecasts": forecast_res.json(),
-                "alertsCork": alerts_cork_res.json(),
-                "alertsKerry": alerts_kerry_res.json(),
+                "alertsCork": alerts_cork_data,
+                "alertsKerry": alerts_kerry_data,
             }
     # Catch ALL exceptions to ensure fallback always triggers
     except Exception as e:
@@ -172,8 +217,8 @@ def fetch_all_weather():
         # --- SAFE FALLBACK (No Dummy Data) ---
         return {
             "forecasts": None,
-            "alertsCork": {"alerts": []},
-            "alertsKerry": {"alerts": []},
+            "alertsCork": None,
+            "alertsKerry": None,
         }
 
 # --- Jotform Data Fetching ---
@@ -276,7 +321,6 @@ HTML_TEMPLATE = """
         }
         
         #modalContent {
-            /* Ensure modal content is visible when container is visible */
             width: 100%;
             max-width: 42rem;
             display: block; 
@@ -874,14 +918,27 @@ HTML_TEMPLATE = """
         function loadSafetyAlerts() {
             const tickerEl = document.getElementById('safetyAlertsTicker');
             try {
-                if (!PRELOADED_WEATHER_DATA || !PRELOADED_WEATHER_DATA.alertsCork || !PRELOADED_WEATHER_DATA.alertsKerry) {
+                if (!PRELOADED_WEATHER_DATA) {
                     tickerEl.style.display = 'none';
                     return;
                 }
+                
                 const { alertsCork, alertsKerry } = PRELOADED_WEATHER_DATA;
+
+                // --- NEW CHECK: If alerts are NULL, the connection failed. Show "Offline" message.
+                if (alertsCork === null || alertsKerry === null) {
+                    tickerEl.innerHTML = `
+                        <div class="bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-300 p-4 flex items-center rounded-2xl shadow-lg">
+                            <svg class="w-7 h-7 text-orange-600 mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                            <span class="font-bold text-orange-800 text-base">⚠ WEATHER WARNING SYSTEM OFFLINE</span>
+                            <span class="ml-4 text-orange-600 text-sm">Unable to retrieve alerts. Please check Met Éireann directly.</span>
+                        </div>`;
+                    return;
+                }
+
                 const allAlerts = [];
-                if (alertsCork.alerts) alertsCork.alerts.forEach(a => allAlerts.push({location: 'CORK', headline: a.headline || a.event, severity: a.severity}));
-                if (alertsKerry.alerts) alertsKerry.alerts.forEach(a => allAlerts.push({location: 'KERRY', headline: a.headline || a.event, severity: a.severity}));
+                if (alertsCork && alertsCork.alerts) alertsCork.alerts.forEach(a => allAlerts.push({location: 'CORK', headline: a.headline || a.event, severity: a.severity}));
+                if (alertsKerry && alertsKerry.alerts) alertsKerry.alerts.forEach(a => allAlerts.push({location: 'KERRY', headline: a.headline || a.event, severity: a.severity}));
 
                 if (allAlerts.length === 0) {
                     tickerEl.innerHTML = `
@@ -995,10 +1052,16 @@ HTML_TEMPLATE = """
 
                 // Warnings Column
                 detailHtml += '<div class="space-y-3"><h4 class="text-base font-bold text-gray-800 border-b-2 border-red-300 pb-2 mb-3 flex items-center">Active Met Éireann Warnings</h4><div class="bg-gradient-to-br from-red-50 to-orange-50 border-2 border-red-200 p-4 rounded-xl shadow-md">';
-                const cW = (alertsCork && alertsCork.alerts) ? alertsCork.alerts.map(a=>`<li><strong class="text-red-700">Cork:</strong> ${a.headline}</li>`).join('') : '';
-                const kW = (alertsKerry && alertsKerry.alerts) ? alertsKerry.alerts.map(a=>`<li><strong class="text-red-700">Kerry:</strong> ${a.headline}</li>`).join('') : '';
-                if(cW || kW) detailHtml += `<ul class="space-y-2 text-sm text-gray-800">${cW}${kW}</ul>`;
-                else detailHtml += '<p class="text-sm text-green-700 font-semibold">No active warnings for Cork or Kerry.</p>';
+                
+                // --- NEW CHECK: If alerts are NULL, show "Unknown" instead of "No Warnings"
+                if (alertsCork === null || alertsKerry === null) {
+                     detailHtml += '<p class="text-sm text-orange-700 font-semibold flex items-center"><svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>Status Unknown - Check Met Éireann</p>';
+                } else {
+                    const cW = (alertsCork && alertsCork.alerts) ? alertsCork.alerts.map(a=>`<li><strong class="text-red-700">Cork:</strong> ${a.headline}</li>`).join('') : '';
+                    const kW = (alertsKerry && alertsKerry.alerts) ? alertsKerry.alerts.map(a=>`<li><strong class="text-red-700">Kerry:</strong> ${a.headline}</li>`).join('') : '';
+                    if(cW || kW) detailHtml += `<ul class="space-y-2 text-sm text-gray-800">${cW}${kW}</ul>`;
+                    else detailHtml += '<p class="text-sm text-green-700 font-semibold">No active warnings for Cork or Kerry.</p>';
+                }
                 detailHtml += '</div></div></div>';
 
                 weatherCardContent.innerHTML = `
