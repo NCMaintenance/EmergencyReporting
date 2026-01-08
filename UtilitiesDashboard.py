@@ -918,27 +918,14 @@ HTML_TEMPLATE = """
         function loadSafetyAlerts() {
             const tickerEl = document.getElementById('safetyAlertsTicker');
             try {
-                if (!PRELOADED_WEATHER_DATA) {
+                if (!PRELOADED_WEATHER_DATA || !PRELOADED_WEATHER_DATA.alertsCork || !PRELOADED_WEATHER_DATA.alertsKerry) {
                     tickerEl.style.display = 'none';
                     return;
                 }
-                
                 const { alertsCork, alertsKerry } = PRELOADED_WEATHER_DATA;
-
-                // --- NEW CHECK: If alerts are NULL, the connection failed. Show "Offline" message.
-                if (alertsCork === null || alertsKerry === null) {
-                    tickerEl.innerHTML = `
-                        <div class="bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-300 p-4 flex items-center rounded-2xl shadow-lg">
-                            <svg class="w-7 h-7 text-orange-600 mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                            <span class="font-bold text-orange-800 text-base">⚠ WEATHER WARNING SYSTEM OFFLINE</span>
-                            <span class="ml-4 text-orange-600 text-sm">Unable to retrieve alerts. Please check Met Éireann directly.</span>
-                        </div>`;
-                    return;
-                }
-
                 const allAlerts = [];
-                if (alertsCork && alertsCork.alerts) alertsCork.alerts.forEach(a => allAlerts.push({location: 'CORK', headline: a.headline || a.event, severity: a.severity}));
-                if (alertsKerry && alertsKerry.alerts) alertsKerry.alerts.forEach(a => allAlerts.push({location: 'KERRY', headline: a.headline || a.event, severity: a.severity}));
+                if (alertsCork.alerts) alertsCork.alerts.forEach(a => allAlerts.push({location: 'CORK', headline: a.headline || a.event, severity: a.severity}));
+                if (alertsKerry.alerts) alertsKerry.alerts.forEach(a => allAlerts.push({location: 'KERRY', headline: a.headline || a.event, severity: a.severity}));
 
                 if (allAlerts.length === 0) {
                     tickerEl.innerHTML = `
@@ -1009,12 +996,21 @@ HTML_TEMPLATE = """
                     if (isWeatherAvailable) {
                         const cw = getWeatherDescription(cork.daily.weathercode[i]);
                         const kw = getWeatherDescription(kerry.daily.weathercode[i]);
+                        const cwd = degreesToCardinal(cork.daily.wind_direction_10m_dominant[i]);
+                        const kwd = degreesToCardinal(kerry.daily.wind_direction_10m_dominant[i]);
+
                         detailHtml += `
                             <div class="bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-200 p-4 rounded-xl shadow-md transition-shadow hover:shadow-lg">
                                 <strong class="text-gray-900 font-bold text-base">${dayLabels[i]}</strong>
                                 <div class="text-xs mt-2 space-y-2">
-                                    <div class="bg-white p-2 rounded-lg"><div><strong class="text-blue-600">Cork:</strong> ${cork.daily.temperature_2m_min[i]}° / ${cork.daily.temperature_2m_max[i]}°C | ${cw}</div></div>
-                                    <div class="bg-white p-2 rounded-lg"><div><strong class="text-blue-600">Kerry:</strong> ${kerry.daily.temperature_2m_min[i]}° / ${kerry.daily.temperature_2m_max[i]}°C | ${kw}</div></div>
+                                    <div class="bg-white p-2 rounded-lg">
+                                        <div><strong class="text-blue-600">Cork:</strong> ${cork.daily.temperature_2m_min[i]}° / ${cork.daily.temperature_2m_max[i]}°C | ${cw}</div>
+                                        <div class="mt-1"><strong class="text-gray-600">Wind:</strong> ${cwd} ${cork.daily.wind_speed_10m_max[i]} km/h</div>
+                                    </div>
+                                    <div class="bg-white p-2 rounded-lg">
+                                        <div><strong class="text-blue-600">Kerry:</strong> ${kerry.daily.temperature_2m_min[i]}° / ${kerry.daily.temperature_2m_max[i]}°C | ${kw}</div>
+                                        <div class="mt-1"><strong class="text-gray-600">Wind:</strong> ${kwd} ${kerry.daily.wind_speed_10m_max[i]} km/h</div>
+                                    </div>
                                 </div>
                             </div>`;
                     } else {
@@ -1052,16 +1048,10 @@ HTML_TEMPLATE = """
 
                 // Warnings Column
                 detailHtml += '<div class="space-y-3"><h4 class="text-base font-bold text-gray-800 border-b-2 border-red-300 pb-2 mb-3 flex items-center">Active Met Éireann Warnings</h4><div class="bg-gradient-to-br from-red-50 to-orange-50 border-2 border-red-200 p-4 rounded-xl shadow-md">';
-                
-                // --- NEW CHECK: If alerts are NULL, show "Unknown" instead of "No Warnings"
-                if (alertsCork === null || alertsKerry === null) {
-                     detailHtml += '<p class="text-sm text-orange-700 font-semibold flex items-center"><svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>Status Unknown - Check Met Éireann</p>';
-                } else {
-                    const cW = (alertsCork && alertsCork.alerts) ? alertsCork.alerts.map(a=>`<li><strong class="text-red-700">Cork:</strong> ${a.headline}</li>`).join('') : '';
-                    const kW = (alertsKerry && alertsKerry.alerts) ? alertsKerry.alerts.map(a=>`<li><strong class="text-red-700">Kerry:</strong> ${a.headline}</li>`).join('') : '';
-                    if(cW || kW) detailHtml += `<ul class="space-y-2 text-sm text-gray-800">${cW}${kW}</ul>`;
-                    else detailHtml += '<p class="text-sm text-green-700 font-semibold">No active warnings for Cork or Kerry.</p>';
-                }
+                const cW = (alertsCork && alertsCork.alerts) ? alertsCork.alerts.map(a=>`<li><strong class="text-red-700">Cork:</strong> ${a.headline}</li>`).join('') : '';
+                const kW = (alertsKerry && alertsKerry.alerts) ? alertsKerry.alerts.map(a=>`<li><strong class="text-red-700">Kerry:</strong> ${a.headline}</li>`).join('') : '';
+                if(cW || kW) detailHtml += `<ul class="space-y-2 text-sm text-gray-800">${cW}${kW}</ul>`;
+                else detailHtml += '<p class="text-sm text-green-700 font-semibold">No active warnings for Cork or Kerry.</p>';
                 detailHtml += '</div></div></div>';
 
                 weatherCardContent.innerHTML = `
