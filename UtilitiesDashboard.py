@@ -335,7 +335,7 @@ HTML_TEMPLATE = """
         }
         
         #map {
-            height: 38vh;
+            height: 600px; /* UPDATED: Fixed height to match 3 stacked charts on right */
             border-radius: 1rem;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
             z-index: 10;
@@ -425,7 +425,7 @@ HTML_TEMPLATE = """
 
         @media (max-width: 768px) {
             #map {
-                height: 25vh;
+                height: 350px;
             }
         }
         
@@ -887,16 +887,21 @@ HTML_TEMPLATE = """
             modalEl.classList.remove('hidden');
 
             // --- DYNAMIC POSITIONING ---
+            // Calculate where the map is relative to the current scroll position
             const mapContainer = document.getElementById('map');
-            const offsetTop = mapContainer.offsetTop;
+            const mapRect = mapContainer.getBoundingClientRect();
             
+            // Adjust the modal's backdrop to cover the full scrollable area
             const modal = document.getElementById('modal');
-            // Ensure the overlay covers the full height of the potentially long dashboard
             modal.style.height = document.body.scrollHeight + 'px';
 
+            // Calculate the absolute top position for the modal content
+            // mapRect.top is relative to the viewport. Adding window.scrollY gives absolute position.
+            const absoluteMapTop = mapRect.top + window.scrollY;
+            
+            // Position the popup box slightly below the top of the map for better visibility
             const modalContent = document.getElementById('modalContent');
-            // Position the content box exactly over the map area, plus a small margin
-            modalContent.style.marginTop = (offsetTop + 50) + 'px';
+            modalContent.style.marginTop = (absoluteMapTop + 50) + 'px';
 
             document.getElementById('closeModalButton').addEventListener('click', hideModal);
         }
