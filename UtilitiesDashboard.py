@@ -444,7 +444,7 @@ HTML_TEMPLATE = """
         <header class="mb-6 px-4 py-4 sm:px-6 sm:py-5 rounded-2xl shadow-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center header-gradient fade-in">
             <div class="flex flex-col items-center sm:flex-row sm:items-center text-center sm:text-left mb-4 sm:mb-0 w-full sm:w-auto">
                 <div class="bg-white/15 backdrop-blur-md p-3 rounded-xl sm:mr-4 mb-3 sm:mb-0 shadow-lg">
-                    <img src="https://www.hse.ie/image-library/hse-site-logo-2021.svg" alt="HSE Logo" class="h-14">
+                    <img src="https://www.esther.ie/wp-content/uploads/2022/05/HSE-Logo-Green-NEW-no-background.png" alt="HSE Logo" class="h-14">
                 </div>
                 <div class="w-full sm:w-auto">
                     <h1 class="text-2xl sm:text-3xl font-black text-white tracking-tight">
@@ -1210,7 +1210,7 @@ def check_password():
         return False
 
     with st.container():
-        st.image("https://www.hse.ie/image-library/hse-site-logo-2021.svg", width=200)
+        st.image("https://www.esther.ie/wp-content/uploads/2022/05/HSE-Logo-Green-NEW-no-background.png", width=200)
         st.title("Secure Access Portal")
         st.info("Please authenticate to proceed to the operations dashboard.")
         
