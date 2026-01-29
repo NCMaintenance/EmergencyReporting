@@ -291,6 +291,7 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HSE SouthWest Facilities Dashboard</title>
+    <!-- Favicon link in HTML head -->
     <link rel="icon" href="https://www.hse.ie/favicon-32x32.png" type="image/png">
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -443,8 +444,10 @@ HTML_TEMPLATE = """
     <div class="content-wrapper">
         <header class="mb-6 px-4 py-4 sm:px-6 sm:py-5 rounded-2xl shadow-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center header-gradient fade-in">
             <div class="flex flex-col items-center sm:flex-row sm:items-center text-center sm:text-left mb-4 sm:mb-0 w-full sm:w-auto">
-                <div class="bg-white/15 backdrop-blur-md p-3 rounded-xl sm:mr-4 mb-3 sm:mb-0 shadow-lg">
-                    <img src="https://www.esther.ie/wp-content/uploads/2022/05/HSE-Logo-Green-NEW-no-background.png" alt="HSE Logo" class="h-14">
+                <!-- LOGO FIX: Changed bg-white/15 to bg-white for solid white background -->
+                <div class="bg-white p-3 rounded-xl sm:mr-4 mb-3 sm:mb-0 shadow-lg">
+                    <!-- LOGO FIX: Added w-auto and object-contain to ensure proper scaling -->
+                    <img src="https://www.esther.ie/wp-content/uploads/2022/05/HSE-Logo-Green-NEW-no-background.png" alt="HSE Logo" class="h-14 w-auto object-contain">
                 </div>
                 <div class="w-full sm:w-auto">
                     <h1 class="text-2xl sm:text-3xl font-black text-white tracking-tight">
@@ -1236,4 +1239,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
